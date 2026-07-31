@@ -1,24 +1,11 @@
-// Configuration PaiementPro officielle pour Orange Money Mali (OMML)
+// Client PaiementPro : appelle l'Edge Function Supabase (cote serveur) qui
+// contacte reellement PaiementPro. Impossible d'appeler PaiementPro directement
+// depuis le navigateur (bloque par CORS) -> c'est pourquoi l'ancien code retombait
+// toujours en mode simule.
+import { FUNCTIONS_URL, SUPABASE_ANON_KEY } from './supabaseClient';
+
 export const PAIEMENTPRO_MERCHANT_ID = 'PP-F92288';
 export const PAIEMENTPRO_CHANNEL = 'OMML'; // Orange Money Mali
-
-/**
- * Charge dynamiquement le script PaiementPro s'il n'est pas présent
- */
-export function loadPaiementProScript() {
-  return new Promise((resolve, reject) => {
-    if (window.PaiementPro) {
-      resolve(true);
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = 'https://www.paiementpro.net/webservice/onlinepayment/js/paiementpro.v1.0.1.js';
-    script.async = true;
-    script.onload = () => resolve(true);
-    script.onerror = () => reject(new Error('Impossible de charger le script PaiementPro'));
-    document.body.appendChild(script);
-  });
-}
 
 /**
  * Génère une référence unique de transaction (ex: W1-ML-1722400000-XYZ)
@@ -30,7 +17,9 @@ export function generateTransactionReference() {
 }
 
 /**
- * Initialise et exécute la demande de paiement PaiementPro
+ * Initialise la demande de paiement via l'Edge Function `paiementpro-init`.
+ * Retourne { success, url, referenceNumber } — `url` = passerelle Orange Money
+ * vers laquelle rediriger l'utilisateur.
  */
 export async function initiatePaiementProCheckout({
   amount,
@@ -41,43 +30,47 @@ export async function initiatePaiementProCheckout({
   customerEmail = 'joueur@winnerone.ml',
   referenceNumber = generateTransactionReference(),
 }) {
-  await loadPaiementProScript();
+  const origin = window.location.origin;
 
-  if (window.PaiementPro) {
-    try {
-      const paiementPro = new window.PaiementPro(PAIEMENTPRO_MERCHANT_ID);
-      paiementPro.amount = amount;
-      paiementPro.channel = PAIEMENTPRO_CHANNEL;
-      paiementPro.referenceNumber = referenceNumber;
-      paiementPro.customerEmail = customerEmail;
-      paiementPro.customerFirstName = customerFirstName;
-      paiementPro.customerLastName = customerLastName;
-      paiementPro.customerPhoneNumber = customerPhoneNumber;
-      paiementPro.description = description || 'Achat Billet WinnerOne Mali (200 FCFA)';
-      paiementPro.countryCurrencyCode = '952'; // FCFA XOF
-      paiementPro.notificationURL = window.location.origin + '/api/payment-callback';
-      paiementPro.returnURL = window.location.origin + '/payment-status';
+  const res = await fetch(`${FUNCTIONS_URL}/paiementpro-init`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      apikey: SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({
+      amount,
+      description: description || 'Achat Billet WinnerOne Mali (200 FCFA)',
+      channel: PAIEMENTPRO_CHANNEL,
+      referenceNumber,
+      customerPhoneNumber,
+      customerFirstName,
+      customerLastname: customerLastName,
+      customerEmail,
+      returnURL: `${origin}/?payment=return&ref=${encodeURIComponent(referenceNumber)}`,
+      notificationURL: `${FUNCTIONS_URL}/paiementpro-callback`,
+      returnContext: referenceNumber,
+    }),
+  });
 
-      if (typeof paiementPro.getUrlPayment === 'function') {
-        await paiementPro.getUrlPayment();
-        if (paiementPro.success && paiementPro.url) {
-          return {
-            success: true,
-            url: paiementPro.url,
-            referenceNumber,
-          };
-        }
-      }
-    } catch (err) {
-      console.warn('PaiementPro SDK execution response:', err);
-    }
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    data = null;
   }
 
-  // Transaction active enregistrée
+  if (!res.ok || !data?.success || !data?.url) {
+    const message =
+      data?.message ||
+      "Impossible d'initialiser le paiement Orange Money. Veuillez réessayer.";
+    throw new Error(message);
+  }
+
   return {
     success: true,
-    simulated: false,
-    referenceNumber,
-    message: `Demande de paiement Orange Money Mali (${PAIEMENTPRO_CHANNEL}) de ${amount} FCFA enregistrée avec l'ID marchand ${PAIEMENTPRO_MERCHANT_ID}`,
+    url: data.url,
+    referenceNumber: data.referenceNumber || referenceNumber,
   };
 }

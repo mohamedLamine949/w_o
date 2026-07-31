@@ -1,7 +1,7 @@
 import React from 'react';
-import { Trophy, User, Download, CheckCircle2 } from 'lucide-react';
+import { Trophy, User, Download, CheckCircle2, LogOut } from 'lucide-react';
 
-export default function Navbar({ userProfile, onOpenAuth, onOpenApkModal, activeTab, setActiveTab }) {
+export default function Navbar({ userProfile, onOpenAuth, onOpenApkModal, onLogout, activeTab, setActiveTab }) {
   return (
     <header className="fdj-header-bg border-b border-blue-900/60 sticky top-0 z-50 shadow-md">
       
@@ -62,19 +62,35 @@ export default function Navbar({ userProfile, onOpenAuth, onOpenApkModal, active
             <span>App Android / PWA</span>
           </button>
 
-          {/* USER ACCOUNT BADGE */}
+          {/* USER ACCOUNT BADGE + LOGOUT */}
           {userProfile ? (
-            <div
-              onClick={() => setActiveTab('profile')}
-              className="flex items-center gap-2 bg-blue-950/90 border border-blue-700/60 hover:border-yellow-400 rounded-full px-3 py-1.5 cursor-pointer transition shadow-inner"
-            >
-              <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">
-                <CheckCircle2 className="w-4 h-4 text-white" />
+            <div className="flex items-center gap-2">
+              <div
+                onClick={() => setActiveTab('profile')}
+                className="flex items-center gap-2 bg-blue-950/90 border border-blue-700/60 hover:border-yellow-400 rounded-full px-3 py-1.5 cursor-pointer transition shadow-inner"
+              >
+                {userProfile.avatar_url ? (
+                  <img src={userProfile.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover" />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">
+                    <CheckCircle2 className="w-4 h-4 text-white" />
+                  </div>
+                )}
+                <div className="text-left hidden sm:block">
+                  <span className="text-xs font-bold text-white block leading-none">{userProfile.full_name || 'Joueur Mali'}</span>
+                  <span className="text-[10px] text-yellow-300 font-mono">{userProfile.om_number || userProfile.email || 'Compte Google'}</span>
+                </div>
               </div>
-              <div className="text-left hidden sm:block">
-                <span className="text-xs font-bold text-white block leading-none">{userProfile.full_name || 'Joueur Mali'}</span>
-                <span className="text-[10px] text-yellow-300 font-mono">{userProfile.om_number || userProfile.phone_number}</span>
-              </div>
+
+              {/* BOUTON DÉCONNEXION VISIBLE */}
+              <button
+                onClick={onLogout}
+                title="Se déconnecter"
+                className="flex items-center gap-1.5 bg-red-500/90 hover:bg-red-500 text-white px-3 py-1.5 rounded-full text-xs font-bold transition shadow"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Déconnexion</span>
+              </button>
             </div>
           ) : (
             <button

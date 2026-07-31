@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { User, Phone, Zap, Wallet, Ticket, History, ArrowUpRight, CheckCircle2, ShieldCheck, Edit3 } from 'lucide-react';
+import { Zap, Wallet, Ticket, ArrowUpRight, LogOut, Mail, Save, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
-export default function UserProfile({ userProfile, userTickets, onOpenAuth, onOpenDeposit }) {
+export default function UserProfile({ userProfile, userTickets, onOpenAuth, onLogout, onProfileUpdate }) {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawStatus, setWithdrawStatus] = useState(null);
+  const [omInput, setOmInput] = useState(userProfile?.om_number || '');
+  const [omSaving, setOmSaving] = useState(false);
+  const [omSaved, setOmSaved] = useState(false);
 
   if (!userProfile) {
     return (
@@ -15,18 +18,45 @@ export default function UserProfile({ userProfile, userTickets, onOpenAuth, onOp
           </div>
           <h2 className="text-xl font-black text-[#00205B]">Connexion au Compte Joueur</h2>
           <p className="text-xs text-slate-500">
-            Veuillez vous connecter avec votre numéro de téléphone et votre numéro Orange Money Mali pour accéder à votre profil complet.
+            Connectez-vous avec Google pour accéder à votre profil, jouer et recevoir vos gains.
           </p>
           <button
             onClick={onOpenAuth}
             className="w-full fdj-yellow-btn py-3 rounded-xl text-xs font-bold shadow"
           >
-            Se Connecter / Inscription Compte Joueur
+            Se Connecter avec Google
           </button>
         </div>
       </section>
     );
   }
+
+  const handleSaveOm = async (e) => {
+    e.preventDefault();
+    if (!omInput || omInput.trim().length < 8) return;
+    setOmSaving(true);
+    setOmSaved(false);
+
+    const formattedOm = omInput.startsWith('+223') ? omInput.trim() : `+223 ${omInput.trim()}`;
+
+    try {
+      const { data: updated } = await supabase
+        .from('profiles')
+        .update({ om_number: formattedOm })
+        .eq('id', userProfile.id)
+        .select()
+        .single();
+
+      const newProfile = updated || { ...userProfile, om_number: formattedOm };
+      localStorage.setItem('winnerone_user', JSON.stringify(newProfile));
+      if (onProfileUpdate) onProfileUpdate(newProfile);
+      setOmSaved(true);
+    } catch (err) {
+      console.warn('Erreur sauvegarde OM:', err);
+    } finally {
+      setOmSaving(false);
+    }
+  };
 
   const handleWithdrawal = async (e) => {
     e.preventDefault();
@@ -78,38 +108,78 @@ export default function UserProfile({ userProfile, userTickets, onOpenAuth, onOp
         <div className="md:col-span-2 fdj-card p-6 sm:p-8 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-200 pb-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-[#00205B] text-white flex items-center justify-center font-bold text-lg">
-                {userProfile.full_name?.charAt(0) || 'J'}
-              </div>
+              {userProfile.avatar_url ? (
+                <img
+                  src={userProfile.avatar_url}
+                  alt={userProfile.full_name}
+                  className="w-12 h-12 rounded-2xl object-cover border border-slate-200"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-2xl bg-[#00205B] text-white flex items-center justify-center font-bold text-lg">
+                  {userProfile.full_name?.charAt(0) || 'J'}
+                </div>
+              )}
               <div>
                 <h2 className="text-lg font-black text-[#00205B]">{userProfile.full_name}</h2>
-                <p className="text-xs text-slate-500 flex items-center gap-1 font-mono">
-                  <Phone className="w-3.5 h-3.5" /> {userProfile.phone_number}
-                </p>
+                {userProfile.email && (
+                  <p className="text-xs text-slate-500 flex items-center gap-1">
+                    <Mail className="w-3.5 h-3.5" /> {userProfile.email}
+                  </p>
+                )}
+                {userProfile.phone_number && (
+                  <p className="text-xs text-slate-500 flex items-center gap-1 font-mono">
+                    <Phone className="w-3.5 h-3.5" /> {userProfile.phone_number}
+                  </p>
+                )}
               </div>
             </div>
 
-            <button
-              onClick={onOpenAuth}
-              className="text-xs font-bold text-[#00205B] hover:underline flex items-center gap-1"
-            >
-              <Edit3 className="w-3.5 h-3.5" /> Modifier
-            </button>
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"
+              >
+                <LogOut className="w-3.5 h-3.5" /> Déconnexion
+              </button>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-              <span className="text-slate-400 block text-[10px] font-semibold">Téléphone Principal</span>
-              <span className="font-mono font-bold text-slate-800">{userProfile.phone_number}</span>
+          {/* ALERTE SI OM MANQUANT */}
+          {!userProfile.om_number && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-xl p-3">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-amber-800 font-medium">
+                Ajoutez votre numéro <span className="font-black">Orange Money Mali</span> ci-dessous pour pouvoir recevoir vos gains.
+              </p>
             </div>
+          )}
 
-            <div className="bg-amber-50 p-3.5 rounded-xl border border-amber-200">
-              <span className="text-amber-800 block text-[10px] font-black flex items-center gap-1">
-                <Zap className="w-3 h-3 text-orange-500" /> Numéro Orange Money Mali
-              </span>
-              <span className="font-mono font-black text-orange-700">{userProfile.om_number || userProfile.phone_number}</span>
+          {/* CHAMP ORANGE MONEY ÉDITABLE */}
+          <form onSubmit={handleSaveOm} className="bg-amber-50 p-4 rounded-2xl border border-amber-200 space-y-2">
+            <label className="text-xs font-black text-amber-900 flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-orange-500" /> Numéro Orange Money Mali (pour vos gains)
+            </label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">+223</span>
+                <input
+                  type="tel"
+                  placeholder="76 54 32 10"
+                  value={omInput}
+                  onChange={(e) => { setOmInput(e.target.value); setOmSaved(false); }}
+                  className="w-full bg-white border border-amber-300 rounded-xl pl-14 pr-4 py-2.5 text-xs text-slate-900 font-mono font-bold focus:outline-none focus:border-orange-500"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={omSaving}
+                className="fdj-blue-btn px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 disabled:opacity-60"
+              >
+                {omSaved ? <CheckCircle2 className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                <span>{omSaving ? '...' : omSaved ? 'Enregistré' : 'Enregistrer'}</span>
+              </button>
             </div>
-          </div>
+          </form>
         </div>
 
         {/* WALLET & WITHDRAWAL CARD */}

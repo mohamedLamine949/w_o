@@ -12,9 +12,14 @@ dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# Supabase CLI (fichiers locaux)
+supabase/.temp/
+supabase/.branches/
+
+# Editor / tooling
 .vscode/*
 !.vscode/extensions.json
+.claude/
 .idea
 .DS_Store
 *.suo

@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { X, ShieldCheck, Zap, CheckCircle, Loader2 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { initiatePaiementProCheckout } from '../lib/paiementPro';
 import { supabase } from '../lib/supabaseClient';
 
-export default function PaiementModal({ isOpen, onClose, gridsToPlay, totalCost, activeDraw, onPaymentSuccess }) {
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [fullName, setFullName] = useState('');
+export default function PaiementModal({ isOpen, onClose, gridsToPlay, totalCost, activeDraw, userProfile, onPaymentSuccess }) {
+  const [phoneNumber, setPhoneNumber] = useState(userProfile?.om_number || userProfile?.phone_number || '');
+  const [fullName, setFullName] = useState(userProfile?.full_name || '');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successData, setSuccessData] = useState(null);
@@ -25,51 +24,27 @@ export default function PaiementModal({ isOpen, onClose, gridsToPlay, totalCost,
     }
 
     const cleanPhone = phoneNumber.startsWith('+223') ? phoneNumber : `+223 ${phoneNumber.trim()}`;
-    const clientName = fullName.trim() || 'Joueur WinnerOne';
+    const clientName = fullName.trim() || userProfile?.full_name || 'Joueur WinnerOne';
 
     try {
-      // 1. Initialiser la transaction PaiementPro (Merchant ID: PP-F92288, Channel: OMML)
+      // 1. Initialiser la transaction PaiementPro cote serveur (Edge Function)
       const res = await initiatePaiementProCheckout({
         amount: totalCost,
         description: `WinnerOne Mali - ${gridsToPlay.length} Grille(s)`,
         customerPhoneNumber: cleanPhone,
         customerFirstName: clientName,
+        customerEmail: userProfile?.email || 'joueur@winnerone.ml',
       });
 
-      if (!res.success) {
-        throw new Error('Erreur lors du traitement avec PaiementPro Orange Money');
-      }
+      // 2. Enregistrer les grilles en PENDING avant la redirection
+      await saveTicketsPending(cleanPhone, clientName, res.referenceNumber);
 
-      // 2. Si PaiementPro a fourni une URL de paiement réelle → REDIRECTION DIRECTE
-      if (res.url) {
-        // Sauvegarder les grilles en PENDING dans Supabase avant redirection
-        await saveTicketsPending(cleanPhone, clientName, res.referenceNumber);
-        // REDIRECTION RÉELLE vers la passerelle de paiement Orange Money
-        window.location.href = res.url;
-        return;
-      }
-
-      // 3. Sinon (mode fallback / test local) : enregistrer directement comme PAID
-      await saveTicketsPaid(cleanPhone, clientName, res.referenceNumber);
-
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-      });
-
-      setSuccessData({
-        reference: res.referenceNumber,
-        phone: cleanPhone,
-        ticketCount: gridsToPlay.length,
-        total: totalCost,
-      });
-
-      if (onPaymentSuccess) onPaymentSuccess();
+      // 3. REDIRECTION REELLE vers la passerelle de paiement Orange Money.
+      // Le statut PAID sera confirme par le webhook paiementpro-callback.
+      window.location.href = res.url;
     } catch (err) {
       console.error(err);
       setErrorMessage(err.message || 'Échec de la transaction. Veuillez réessayer.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -102,36 +77,10 @@ export default function PaiementModal({ isOpen, onClose, gridsToPlay, totalCost,
     });
   };
 
-  // Sauvegarder les grilles en statut PAID (mode fallback local)
-  const saveTicketsPaid = async (cleanPhone, clientName, referenceNumber) => {
-    const userId = await getOrCreateUserId(cleanPhone, clientName);
-
-    for (const grid of gridsToPlay) {
-      const ticketRef = referenceNumber + '-' + Math.floor(Math.random() * 1000);
-
-      await supabase.from('tickets').insert({
-        user_id: userId,
-        draw_id: activeDraw?.id && activeDraw.id !== 'mock-upcoming' ? activeDraw.id : null,
-        main_numbers: grid.main,
-        star_numbers: grid.star,
-        ticket_price: 200,
-        reference_number: ticketRef,
-        payment_channel: 'OMML',
-        payment_status: 'PAID',
-      });
-    }
-
-    await supabase.from('transactions').insert({
-      user_id: userId,
-      type: 'TICKET_PURCHASE',
-      amount: totalCost,
-      reference: referenceNumber,
-      status: 'SUCCESS',
-    });
-  };
-
-  // Récupérer ou créer l'ID utilisateur
+  // Récupérer ou créer l'ID utilisateur (privilégie le profil connecté)
   const getOrCreateUserId = async (cleanPhone, clientName) => {
+    if (userProfile?.id) return userProfile.id;
+
     const { data: existingUser } = await supabase
       .from('profiles')
       .select('id')

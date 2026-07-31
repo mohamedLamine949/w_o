@@ -9,7 +9,8 @@ import AdminPanel from './components/AdminPanel';
 import AuthModal from './components/AuthModal';
 import PaiementModal from './components/PaiementModal';
 import ApkDownloadModal from './components/ApkDownloadModal';
-import { supabase } from './lib/supabaseClient';
+import confetti from 'canvas-confetti';
+import { supabase, ensureProfileForAuthUser, signOut } from './lib/supabaseClient';
 
 export default function App() {
   const [activeDraw, setActiveDraw] = useState(null);
@@ -55,6 +56,60 @@ export default function App() {
     }
   }, []);
 
+  // Gestion de la session Google (OAuth) : charge/crée le profil après connexion
+  useEffect(() => {
+    const applyAuthUser = async (authUser) => {
+      if (!authUser) return;
+      const profile = await ensureProfileForAuthUser(authUser);
+      if (profile) {
+        setUserProfile(profile);
+        localStorage.setItem('winnerone_user', JSON.stringify(profile));
+      }
+    };
+
+    // Session déjà active (retour de redirection Google)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) applyAuthUser(session.user);
+    });
+
+    // Écoute les changements (connexion / déconnexion)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        applyAuthUser(session.user);
+      } else if (event === 'SIGNED_OUT') {
+        setUserProfile(null);
+        localStorage.removeItem('winnerone_user');
+      }
+    });
+
+    return () => subscription?.unsubscribe();
+  }, []);
+
+  // Retour depuis la passerelle de paiement Orange Money
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') === 'return') {
+      setActiveTab('tickets');
+      confetti({ particleCount: 120, spread: 75, origin: { y: 0.6 } });
+      // Le webhook confirme le paiement en arrière-plan : on rafraîchit plusieurs fois
+      fetchData();
+      const t1 = setTimeout(fetchData, 3000);
+      const t2 = setTimeout(fetchData, 8000);
+      // Nettoyer l'URL
+      window.history.replaceState({}, '', window.location.pathname);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
+    }
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } catch (e) {}
+    setUserProfile(null);
+    localStorage.removeItem('winnerone_user');
+    setActiveTab('play');
+  };
+
   const fetchData = async () => {
     try {
       const { data: upcoming } = await supabase
@@ -86,13 +141,20 @@ export default function App() {
 
       if (past) setPastDraws(past);
 
-      const { data: tickets } = await supabase
+      // Billets de l'utilisateur connecté uniquement (évite la confusion entre comptes)
+      let ticketsQuery = supabase
         .from('tickets')
         .select('*')
         .order('created_at', { ascending: false });
 
+      if (userProfile?.id) {
+        ticketsQuery = ticketsQuery.eq('user_id', userProfile.id);
+      }
+
+      const { data: tickets } = await ticketsQuery;
+
       if (tickets) {
-        setUserTickets(tickets);
+        setUserTickets(userProfile?.id ? tickets : []);
         const winningTicket = tickets.find((t) => t.win_rank > 0);
         if (winningTicket) setLatestWinningTicket(winningTicket);
       }
@@ -103,7 +165,8 @@ export default function App() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userProfile?.id]);
 
   const handleProceedToPayment = (grids, cost) => {
     if (!userProfile) {
@@ -127,6 +190,7 @@ export default function App() {
         userProfile={userProfile}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onOpenApkModal={() => setIsApkModalOpen(true)}
+        onLogout={handleLogout}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
       />
@@ -159,7 +223,8 @@ export default function App() {
             userProfile={userProfile}
             userTickets={userTickets}
             onOpenAuth={() => setIsAuthModalOpen(true)}
-            onOpenDeposit={() => setActiveTab('play')}
+            onLogout={handleLogout}
+            onProfileUpdate={handleUserSaved}
           />
         )}
 
@@ -179,8 +244,6 @@ export default function App() {
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
-        userProfile={userProfile}
-        onUserSaved={handleUserSaved}
       />
 
       <PaiementModal
@@ -189,6 +252,7 @@ export default function App() {
         gridsToPlay={pendingGrids}
         totalCost={pendingCost}
         activeDraw={activeDraw}
+        userProfile={userProfile}
         onPaymentSuccess={fetchData}
       />
 
