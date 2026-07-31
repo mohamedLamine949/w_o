@@ -1,134 +1,244 @@
 import React, { useState } from 'react';
-import { Sparkles, Trash2, CheckCircle2, Ticket, Zap, Info } from 'lucide-react';
+import { Sparkles, Trash2, Zap, CheckCircle2, Ticket, Star, RefreshCw } from 'lucide-react';
 import { generateFlashPick, TICKET_PRICE } from '../lib/lotteryLogic';
 
 export default function TicketSelector({ onProceedToPayment }) {
-  const [selectedMain, setSelectedMain] = useState([]);
-  const [selectedStar, setSelectedStar] = useState([]);
-  const [ticketQuantity, setTicketQuantity] = useState(1);
-  const [storedGrids, setStoredGrids] = useState([]);
+  // Mode: 'classique' | 'flash_rapide'
+  const [playMode, setPlayMode] = useState('classique');
 
-  // Gérer la sélection des numéros principaux (max 5)
+  // Grilles gérées en onglets
+  const [grids, setGrids] = useState([
+    { id: 1, main: [], star: [] }
+  ]);
+  const [activeGridIndex, setActiveGridIndex] = useState(0);
+
+  // Nombre de tickets pour Flash rapide / Multi-tickets
+  const [multiQuantity, setMultiQuantity] = useState(5);
+
+  const currentGrid = grids[activeGridIndex] || { main: [], star: [] };
+
+  // Sélection numéros principaux (1..50)
   const toggleMainNumber = (num) => {
-    if (selectedMain.includes(num)) {
-      setSelectedMain(selectedMain.filter((n) => n !== num));
+    const currentMain = currentGrid.main;
+    let newMain;
+    if (currentMain.includes(num)) {
+      newMain = currentMain.filter((n) => n !== num);
     } else {
-      if (selectedMain.length < 5) {
-        setSelectedMain([...selectedMain, num].sort((a, b) => a - b));
+      if (currentMain.length < 5) {
+        newMain = [...currentMain, num].sort((a, b) => a - b);
+      } else {
+        return;
       }
     }
+    updateGrid(activeGridIndex, newMain, currentGrid.star);
   };
 
-  // Gérer la sélection des étoiles (max 2)
+  // Sélection étoiles (1..12)
   const toggleStarNumber = (num) => {
-    if (selectedStar.includes(num)) {
-      setSelectedStar(selectedStar.filter((n) => n !== num));
+    const currentStar = currentGrid.star;
+    let newStar;
+    if (currentStar.includes(num)) {
+      newStar = currentStar.filter((n) => n !== num);
     } else {
-      if (selectedStar.length < 2) {
-        setSelectedStar([...selectedStar, num].sort((a, b) => a - b));
+      if (currentStar.length < 2) {
+        newStar = [...currentStar, num].sort((a, b) => a - b);
+      } else {
+        return;
       }
     }
+    updateGrid(activeGridIndex, currentGrid.main, newStar);
   };
 
-  // Générer un choix rapide Flash
-  const handleFlashPick = () => {
+  const updateGrid = (index, newMain, newStar) => {
+    const updated = [...grids];
+    updated[index] = { ...updated[index], main: newMain, star: newStar };
+    setGrids(updated);
+  };
+
+  // Flash pour la grille active
+  const handleFlashSingle = () => {
     const { mainNumbers, starNumbers } = generateFlashPick();
-    setSelectedMain(mainNumbers);
-    setSelectedStar(starNumbers);
+    updateGrid(activeGridIndex, mainNumbers, starNumbers);
   };
 
-  // Réinitialiser la sélection
-  const handleClear = () => {
-    setSelectedMain([]);
-    setSelectedStar([]);
-  };
-
-  // Ajouter la grille courante ou valider
-  const isCurrentGridComplete = selectedMain.length === 5 && selectedStar.length === 2;
-
-  const handleAddGrid = () => {
-    if (isCurrentGridComplete) {
-      setStoredGrids([...storedGrids, { main: selectedMain, star: selectedStar }]);
-      handleClear();
+  // Flash Multiple (génère N grilles complètes d'un coup)
+  const handleFlashMultiple = (count = 5) => {
+    const newGrids = [];
+    for (let i = 0; i < count; i++) {
+      const { mainNumbers, starNumbers } = generateFlashPick();
+      newGrids.push({ id: i + 1, main: mainNumbers, star: starNumbers });
     }
+    setGrids(newGrids);
+    setActiveGridIndex(0);
   };
 
-  const handleRemoveStoredGrid = (index) => {
-    setStoredGrids(storedGrids.filter((_, i) => i !== index));
+  // Effacer la grille active
+  const handleClearCurrentGrid = () => {
+    updateGrid(activeGridIndex, [], []);
   };
 
-  // Total des grilles prêtes à jouer
-  const activeGridsToPlay = isCurrentGridComplete
-    ? [...storedGrids, { main: selectedMain, star: selectedStar }]
-    : storedGrids;
+  // Ajouter une nouvelle grille
+  const handleAddGrid = () => {
+    const newId = grids.length + 1;
+    setGrids([...grids, { id: newId, main: [], star: [] }]);
+    setActiveGridIndex(grids.length);
+  };
 
-  const totalCost = activeGridsToPlay.length * TICKET_PRICE;
+  // Supprimer une grille
+  const handleRemoveGrid = (index) => {
+    if (grids.length === 1) {
+      updateGrid(0, [], []);
+      return;
+    }
+    const updated = grids.filter((_, i) => i !== index);
+    setGrids(updated);
+    setActiveGridIndex(Math.max(0, index - 1));
+  };
 
-  const handleCheckoutClick = () => {
-    if (activeGridsToPlay.length > 0) {
-      onProceedToPayment(activeGridsToPlay, totalCost);
+  // Filtrer les grilles complètes (5 numéros + 2 étoiles)
+  const validGrids = grids.filter((g) => g.main.length === 5 && g.star.length === 2);
+  const totalCost = validGrids.length * TICKET_PRICE;
+
+  const handleCheckout = () => {
+    if (validGrids.length > 0) {
+      onProceedToPayment(validGrids, totalCost);
     }
   };
 
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 py-6" id="ticket-section">
+    <section className="max-w-5xl mx-auto px-4 sm:px-6 py-6" id="ticket-section">
       
-      <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-yellow-500/20 shadow-xl">
+      {/* FDJ MODE TABS (Classique | Flash rapide | MultiChances) */}
+      <div className="flex items-center justify-center border-b border-gray-300 mb-6 bg-white rounded-2xl shadow-xs p-1 max-w-lg mx-auto">
+        <button
+          onClick={() => setPlayMode('classique')}
+          className={`flex-1 py-2.5 text-sm font-extrabold rounded-xl transition ${
+            playMode === 'classique'
+              ? 'bg-[#00205B] text-white shadow-sm'
+              : 'text-gray-600 hover:text-[#00205B]'
+          }`}
+        >
+          Classique
+        </button>
+        <button
+          onClick={() => setPlayMode('flash_rapide')}
+          className={`flex-1 py-2.5 text-sm font-extrabold rounded-xl transition relative ${
+            playMode === 'flash_rapide'
+              ? 'bg-[#00205B] text-white shadow-sm'
+              : 'text-gray-600 hover:text-[#00205B]'
+          }`}
+        >
+          <span>Flash rapide</span>
+          <span className="absolute -top-2 right-2 bg-red-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase">
+            Nouveau
+          </span>
+        </button>
+      </div>
+
+      {/* FDJ ACTION PILLS */}
+      <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap mb-6">
+        <button onClick={handleFlashSingle} className="fdj-pill-btn">
+          <Zap className="w-4 h-4 text-blue-600" />
+          <span>Flash</span>
+        </button>
+        <button onClick={() => handleFlashMultiple(multiQuantity)} className="fdj-pill-btn">
+          <Sparkles className="w-4 h-4 text-amber-500" />
+          <span>Flash Multiple ({multiQuantity} grilles)</span>
+        </button>
+        <button onClick={handleClearCurrentGrid} className="fdj-pill-btn">
+          <Trash2 className="w-4 h-4 text-red-500" />
+          <span>Effacer grille</span>
+        </button>
+      </div>
+
+      {/* MAIN SELECTION CONTAINER */}
+      <div className="fdj-card p-6 sm:p-8">
         
-        {/* HEADER SECTION */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-slate-800 pb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Ticket className="w-5 h-5 text-yellow-400" />
-              <h2 className="text-xl sm:text-2xl font-bold text-white">Remplissez votre Grille EuroMillions</h2>
-            </div>
-            <p className="text-xs sm:text-sm text-gray-400">
-              Choisissez <span className="text-yellow-400 font-bold">5 Numéros</span> (entre 1 et 50) et <span className="text-emerald-400 font-bold">2 Étoiles</span> (entre 1 et 12).
-            </p>
-          </div>
+        {/* MULTI-GRID TABS HEADER */}
+        <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-6 flex-wrap gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto py-1">
+            {grids.map((g, idx) => {
+              const isComplete = g.main.length === 5 && g.star.length === 2;
+              return (
+                <button
+                  key={`grid-tab-${g.id}`}
+                  onClick={() => setActiveGridIndex(idx)}
+                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition ${
+                    activeGridIndex === idx
+                      ? 'bg-[#00205B] text-white shadow-md'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <span>Grille {idx + 1}</span>
+                  {isComplete && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
+                </button>
+              );
+            })}
 
-          {/* ACTION BUTTONS */}
-          <div className="flex items-center gap-2">
             <button
-              onClick={handleFlashPick}
-              className="gold-button px-4 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-lg hover:scale-105 transition"
+              onClick={handleAddGrid}
+              className="px-3 py-2 rounded-xl border border-dashed border-slate-300 text-slate-600 hover:border-[#00205B] hover:text-[#00205B] text-xs font-bold transition"
             >
-              <Sparkles className="w-4 h-4" />
-              <span>Flash (Choix Auto)</span>
-            </button>
-
-            <button
-              onClick={handleClear}
-              className="bg-slate-800 hover:bg-slate-700 text-gray-300 border border-slate-700 px-3 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-1.5 transition"
-            >
-              <Trash2 className="w-4 h-4 text-red-400" />
-              <span className="hidden xs:inline">Effacer</span>
+              + Ajouter une Grille
             </button>
           </div>
+
+          <span className="text-xs font-semibold text-slate-500">
+            Grille {activeGridIndex + 1} sur {grids.length}
+          </span>
         </div>
 
-        {/* NUMBERS SELECTION GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* MODE FLASH RAPIDE FAST MULTI SELECTOR */}
+        {playMode === 'flash_rapide' && (
+          <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h4 className="text-sm font-extrabold text-[#00205B]">Acheter plusieurs grilles Flash en 1 clic</h4>
+              <p className="text-xs text-slate-600">Choisissez le nombre de grilles à générer automatiquement :</p>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {[1, 3, 5, 10].map((qty) => (
+                <button
+                  key={`qty-${qty}`}
+                  onClick={() => {
+                    setMultiQuantity(qty);
+                    handleFlashMultiple(qty);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition ${
+                    grids.length === qty
+                      ? 'bg-[#00205B] text-white shadow'
+                      : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  {qty} Grille{qty > 1 ? 's' : ''}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* NUMBERS SELECTION SECTION (FDJ EXACT LAYOUT) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
           
-          {/* MAIN NUMBERS (1 to 50) */}
-          <div className="lg:col-span-2 bg-slate-900/60 p-5 rounded-2xl border border-slate-800">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-bold text-gray-200 flex items-center gap-2">
-                <span>1. Choisissez 5 Numéros</span>
-                <span className="text-xs text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/30">
-                  {selectedMain.length}/5 Sélectionnés
-                </span>
+          {/* LEFT: 50 MAIN BALLS */}
+          <div className="md:col-span-2 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs sm:text-sm font-extrabold text-[#00205B] uppercase tracking-wide">
+                Cochez 5 numéros
+              </span>
+              <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
+                {currentGrid.main.length}/5 sélectionnés
               </span>
             </div>
 
-            <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 sm:gap-2.5">
+            <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 sm:gap-2.5 justify-items-center">
               {Array.from({ length: 50 }, (_, i) => i + 1).map((num) => {
-                const isSelected = selectedMain.includes(num);
+                const isSelected = currentGrid.main.includes(num);
                 return (
                   <button
                     key={`main-${num}`}
                     onClick={() => toggleMainNumber(num)}
-                    className={`lotto-ball-main ${isSelected ? 'selected' : ''}`}
+                    className={`fdj-ball-main ${isSelected ? 'selected' : ''}`}
                   >
                     {num}
                   </button>
@@ -137,93 +247,60 @@ export default function TicketSelector({ onProceedToPayment }) {
             </div>
           </div>
 
-          {/* STAR NUMBERS (1 to 12) */}
-          <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-bold text-gray-200 flex items-center gap-2">
-                  <span>2. Choisissez 2 Étoiles</span>
-                  <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
-                    {selectedStar.length}/2 Sélectionnées
-                  </span>
-                </span>
-              </div>
-
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 justify-items-center">
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => {
-                  const isSelected = selectedStar.includes(num);
-                  return (
-                    <button
-                      key={`star-${num}`}
-                      onClick={() => toggleStarNumber(num)}
-                      className={`lotto-ball-star ${isSelected ? 'selected' : ''}`}
-                    >
-                      {num}
-                    </button>
-                  );
-                })}
-              </div>
+          {/* RIGHT: 12 STAR BALLS */}
+          <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+            <div className="flex items-center justify-between">
+              <span className="text-xs sm:text-sm font-extrabold text-[#00205B] uppercase tracking-wide">
+                et 2 étoiles
+              </span>
+              <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                {currentGrid.star.length}/2 étoiles
+              </span>
             </div>
 
-            {/* LIVE PREVIEW OF SELECTED NUMBERS */}
-            <div className="mt-6 pt-4 border-t border-slate-800">
-              <span className="text-xs text-gray-400 block mb-2 font-medium">Grille sélectionnée :</span>
-              <div className="flex items-center gap-2 flex-wrap min-h-[48px] bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                {selectedMain.map((n) => (
-                  <span key={`preview-m-${n}`} className="w-8 h-8 rounded-full bg-yellow-500 text-slate-950 font-bold text-xs flex items-center justify-center shadow">
-                    {n}
-                  </span>
-                ))}
-                {selectedStar.map((s) => (
-                  <span key={`preview-s-${s}`} className="w-8 h-8 rounded-full bg-emerald-500 text-slate-950 font-bold text-xs flex items-center justify-center shadow">
-                    ★{s}
-                  </span>
-                ))}
-                {!isCurrentGridComplete && (
-                  <span className="text-xs text-gray-500 italic">Complétez la grille...</span>
-                )}
-              </div>
-
-              {isCurrentGridComplete && (
-                <button
-                  onClick={handleAddGrid}
-                  className="w-full mt-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 transition"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Ajouter une 2ème Grille</span>
-                </button>
-              )}
+            <div className="grid grid-cols-3 gap-3 justify-items-center">
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => {
+                const isSelected = currentGrid.star.includes(num);
+                return (
+                  <button
+                    key={`star-${num}`}
+                    onClick={() => toggleStarNumber(num)}
+                    className={`fdj-ball-star ${isSelected ? 'selected' : ''}`}
+                  >
+                    {num}
+                  </button>
+                );
+              })}
             </div>
-
           </div>
 
         </div>
 
-        {/* STORED GRIDS LIST & CHECKOUT BAR */}
-        <div className="mt-8 pt-6 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
+        {/* BOTTOM CHECKOUT SUMMARY BAR */}
+        <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
           
-          {/* RECAP OF ALL GRIDS */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm font-bold text-gray-300">Total Grilles à valider :</span>
-            <span className="text-lg font-black text-yellow-400 bg-yellow-500/10 px-3 py-1 rounded-xl border border-yellow-500/30">
-              {activeGridsToPlay.length} Grille{activeGridsToPlay.length > 1 ? 's' : ''}
-            </span>
-            <span className="text-sm text-gray-400">
-              ({(activeGridsToPlay.length * TICKET_PRICE).toLocaleString('fr-FR')} FCFA)
-            </span>
+          <div>
+            <span className="text-xs text-slate-500 font-semibold block">Total grilles prêtes à jouer :</span>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-black text-[#00205B]">
+                {validGrids.length} Grille{validGrids.length > 1 ? 's' : ''}
+              </span>
+              <span className="text-lg font-bold text-amber-600">
+                ({totalCost.toLocaleString('fr-FR')} FCFA)
+              </span>
+            </div>
           </div>
 
-          {/* CHECKOUT BUTTON */}
           <button
-            onClick={handleCheckoutClick}
-            disabled={activeGridsToPlay.length === 0}
-            className={`px-8 py-3.5 rounded-2xl font-black text-sm sm:text-base flex items-center gap-3 transition-all shadow-xl ${
-              activeGridsToPlay.length > 0
-                ? 'gold-button hover:scale-105 cursor-pointer'
-                : 'bg-slate-800 text-gray-500 cursor-not-allowed border border-slate-700'
+            onClick={handleCheckout}
+            disabled={validGrids.length === 0}
+            className={`px-8 py-4 rounded-2xl font-black text-sm sm:text-base flex items-center gap-3 transition shadow-lg ${
+              validGrids.length > 0
+                ? 'fdj-yellow-btn cursor-pointer'
+                : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
             }`}
           >
-            <Zap className="w-5 h-5 text-slate-950 fill-slate-950" />
+            <Ticket className="w-5 h-5 text-[#00205B]" />
             <span>PAYER {totalCost > 0 ? `${totalCost.toLocaleString('fr-FR')} FCFA` : '200 FCFA'} VIA ORANGE MONEY</span>
           </button>
 

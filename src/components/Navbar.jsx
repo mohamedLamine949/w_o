@@ -1,66 +1,84 @@
-import React, { useState } from 'react';
-import { Trophy, Wallet, Smartphone, Download, User, ArrowDownToLine } from 'lucide-react';
+import React from 'react';
+import { Trophy, User, Download, Wallet, LogOut, CheckCircle2 } from 'lucide-react';
 
-export default function Navbar({ userProfile, onOpenAuth, onOpenDeposit, onOpenApkModal }) {
+export default function Navbar({ userProfile, onOpenAuth, onOpenApkModal, activeTab, setActiveTab }) {
   return (
-    <header className="sticky top-0 z-50 glass-panel border-b border-yellow-500/20 px-4 py-3">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
+    <header className="fdj-header-bg border-b border-blue-900/60 sticky top-0 z-50 shadow-md">
+      
+      {/* TOP NAVIGATION BAR */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between">
         
-        {/* LOGO */}
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-yellow-500 via-amber-400 to-emerald-500 flex items-center justify-center shadow-lg shadow-yellow-500/20">
-            <Trophy className="w-6 h-6 text-slate-950 font-bold" />
+        {/* BRANDING LOGO */}
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('play')}>
+          <div className="w-10 h-10 rounded-xl bg-blue-600 border border-yellow-400 flex items-center justify-center shadow-md">
+            <Trophy className="w-6 h-6 text-yellow-400" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xl font-black tracking-tight text-white">WINNER<span className="gold-gradient-text">ONE</span></span>
-              <span className="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-1.5 py-0.5 rounded font-semibold">MALI</span>
+              <span className="text-xl font-black tracking-tight text-white">EUROMILLIONS</span>
+              <span className="bg-yellow-400 text-blue-950 font-black text-[10px] px-1.5 py-0.5 rounded uppercase">MALI</span>
             </div>
-            <p className="text-[10px] text-gray-400 font-medium tracking-wide">Loterie Journalière (200 FCFA)</p>
+            <p className="text-[10px] text-blue-200 font-medium">WinnerOne &bull; Tirage Journalier (200 FCFA)</p>
           </div>
         </div>
 
-        {/* ACTIONS & USER WALLET */}
-        <div className="flex items-center gap-3">
+        {/* CENTER TABS */}
+        <nav className="hidden md:flex items-center gap-1 text-xs font-bold text-blue-100">
+          <button
+            onClick={() => setActiveTab('play')}
+            className={`px-4 py-2 rounded-lg transition ${activeTab === 'play' ? 'bg-blue-800 text-yellow-300 font-extrabold' : 'hover:bg-blue-900/60'}`}
+          >
+            Jeux de Tirage
+          </button>
+          <button
+            onClick={() => setActiveTab('tickets')}
+            className={`px-4 py-2 rounded-lg transition ${activeTab === 'tickets' ? 'bg-blue-800 text-yellow-300 font-extrabold' : 'hover:bg-blue-900/60'}`}
+          >
+            Mes Billets
+          </button>
+          <button
+            onClick={() => setActiveTab('results')}
+            className={`px-4 py-2 rounded-lg transition ${activeTab === 'results' ? 'bg-blue-800 text-yellow-300 font-extrabold' : 'hover:bg-blue-900/60'}`}
+          >
+            Résultats
+          </button>
+        </nav>
 
-          {/* TELECHARGER APK BUTTON */}
+        {/* RIGHT ACTIONS */}
+        <div className="flex items-center gap-3">
+          
+          {/* APK DOWNLOAD */}
           <button
             onClick={onOpenApkModal}
-            className="hidden sm:flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-yellow-400 border border-yellow-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+            className="hidden sm:flex items-center gap-1.5 bg-blue-900/80 hover:bg-blue-800 text-yellow-300 border border-yellow-400/40 px-3 py-1.5 rounded-full text-xs font-bold transition"
           >
-            <Download className="w-4 h-4 text-emerald-400" />
+            <Download className="w-3.5 h-3.5 text-yellow-400" />
             <span>App Android / PWA</span>
           </button>
 
-          {/* WALLET BALANCE & RECHARGER */}
-          <div className="flex items-center bg-slate-900/90 border border-yellow-500/30 rounded-xl p-1 shadow-inner">
-            <div className="flex items-center gap-2 px-3 py-1">
-              <Wallet className="w-4 h-4 text-yellow-400" />
-              <div>
-                <span className="text-[10px] text-gray-400 block leading-none">Solde FCFA</span>
-                <span className="text-xs sm:text-sm font-bold text-white">
-                  {userProfile ? `${userProfile.balance.toLocaleString('fr-FR')} FCFA` : '0 FCFA'}
-                </span>
+          {/* USER ACCOUNT BADGE */}
+          {userProfile ? (
+            <div
+              onClick={onOpenAuth}
+              className="flex items-center gap-2 bg-blue-950/90 border border-blue-700/60 hover:border-yellow-400 rounded-full px-3 py-1.5 cursor-pointer transition shadow-inner"
+            >
+              <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">
+                <CheckCircle2 className="w-4 h-4 text-white" />
+              </div>
+              <div className="text-left hidden sm:block">
+                <span className="text-xs font-bold text-white block leading-none">{userProfile.full_name || 'Joueur Mali'}</span>
+                <span className="text-[10px] text-yellow-300 font-mono">{userProfile.om_number || userProfile.phone_number}</span>
               </div>
             </div>
-
+          ) : (
             <button
-              onClick={onOpenDeposit}
-              className="gold-button px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"
+              onClick={onOpenAuth}
+              className="fdj-yellow-btn px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 shadow"
             >
-              <span>+</span>
-              <span className="hidden xs:inline">Recharger</span>
+              <User className="w-4 h-4" />
+              <span>Se Connecter / Compte</span>
             </button>
-          </div>
-
-          {/* USER ACCOUNT */}
-          <button
-            onClick={onOpenAuth}
-            className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 hover:border-yellow-500/50 flex items-center justify-center text-gray-300 hover:text-yellow-400 transition"
-            title="Mon Compte / Téléphone"
-          >
-            <User className="w-5 h-5" />
-          </button>
+          )}
 
         </div>
 

@@ -1,28 +1,40 @@
 import React from 'react';
-import { Ticket, CheckCircle2, Clock, Trophy, ArrowUpRight } from 'lucide-react';
+import { Ticket, Clock, CheckCircle2, UserCheck } from 'lucide-react';
 
-export default function MyTickets({ userTickets, onOpenDeposit }) {
+export default function MyTickets({ userTickets, userProfile, onOpenAuth, onOpenDeposit }) {
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8" id="my-tickets-section">
-      <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-yellow-500/20">
+    <section className="max-w-5xl mx-auto px-4 sm:px-6 py-8" id="my-tickets-section">
+      <div className="fdj-card p-6 sm:p-8 space-y-6">
         
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
           <div>
             <div className="flex items-center gap-2">
-              <Ticket className="w-5 h-5 text-yellow-400" />
-              <h2 className="text-xl font-bold text-white">Mes Billets Achetes</h2>
+              <Ticket className="w-5 h-5 text-[#00205B]" />
+              <h2 className="text-lg font-black text-[#00205B]">Mes Billets EuroMillions Achetes</h2>
             </div>
-            <p className="text-xs text-gray-400">
-              Retrouvez ici tous vos tickets valides pour le tirage EuroMillions Mali.
+            <p className="text-xs text-slate-500">
+              {userProfile
+                ? `Compte : ${userProfile.full_name} (${userProfile.om_number || userProfile.phone_number})`
+                : 'Connectez-vous pour associer vos billets à votre compte Orange Money Mali.'}
             </p>
           </div>
 
-          <button
-            onClick={onOpenDeposit}
-            className="gold-button px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 self-start sm:self-auto"
-          >
-            <span>Acheter d'autres Grilles (200 FCFA)</span>
-          </button>
+          {!userProfile ? (
+            <button
+              onClick={onOpenAuth}
+              className="fdj-yellow-btn px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 self-start sm:self-auto"
+            >
+              <UserCheck className="w-4 h-4" />
+              <span>Se Connecter / Associer Mon Compte</span>
+            </button>
+          ) : (
+            <button
+              onClick={onOpenDeposit}
+              className="fdj-yellow-btn px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 self-start sm:self-auto"
+            >
+              <span>+ Jouer d'autres grilles (200 FCFA)</span>
+            </button>
+          )}
         </div>
 
         {userTickets && userTickets.length > 0 ? (
@@ -30,12 +42,12 @@ export default function MyTickets({ userTickets, onOpenDeposit }) {
             {userTickets.map((ticket) => (
               <div
                 key={ticket.id}
-                className="bg-slate-900/90 border border-slate-800 hover:border-yellow-500/40 rounded-2xl p-4 flex flex-col justify-between transition-all"
+                className="bg-slate-50 border border-slate-200 hover:border-[#00205B] rounded-2xl p-4 flex flex-col justify-between transition"
               >
                 <div>
-                  <div className="flex items-center justify-between text-xs mb-3 pb-2 border-b border-slate-800">
-                    <span className="font-mono font-bold text-gray-300">{ticket.reference_number}</span>
-                    <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded text-[10px] font-bold">
+                  <div className="flex items-center justify-between text-xs mb-3 pb-2 border-b border-slate-200">
+                    <span className="font-mono font-bold text-slate-700">{ticket.reference_number}</span>
+                    <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded text-[10px] font-bold">
                       PAYÉ (OMML)
                     </span>
                   </div>
@@ -45,16 +57,16 @@ export default function MyTickets({ userTickets, onOpenDeposit }) {
                     {ticket.main_numbers?.map((num, i) => (
                       <span
                         key={`m-${i}`}
-                        className="w-7 h-7 rounded-full bg-slate-800 text-yellow-400 font-bold text-xs flex items-center justify-center border border-slate-700"
+                        className="w-7 h-7 rounded-full bg-white text-[#00205B] font-extrabold text-xs flex items-center justify-center border border-slate-300 shadow-xs"
                       >
                         {num}
                       </span>
                     ))}
-                    <span className="text-xs text-emerald-400 font-bold px-0.5">+</span>
+                    <span className="text-xs text-amber-600 font-bold px-0.5">+</span>
                     {ticket.star_numbers?.map((star, i) => (
                       <span
                         key={`s-${i}`}
-                        className="w-7 h-7 rounded-full bg-emerald-900/40 text-emerald-400 font-bold text-xs flex items-center justify-center border border-emerald-500/40"
+                        className="w-7 h-7 rounded-full bg-amber-100 text-amber-900 font-black text-xs flex items-center justify-center border border-amber-300 shadow-xs"
                       >
                         ★{star}
                       </span>
@@ -63,9 +75,9 @@ export default function MyTickets({ userTickets, onOpenDeposit }) {
                 </div>
 
                 {/* FOOTER / STATUS */}
-                <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-1.5 text-gray-400">
-                    <Clock className="w-3.5 h-3.5 text-yellow-400" />
+                <div className="pt-3 border-t border-slate-200 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1.5 text-slate-500">
+                    <Clock className="w-3.5 h-3.5 text-blue-600" />
                     <span>
                       {ticket.win_rank > 0
                         ? `Gagnant Rang ${ticket.win_rank}`
@@ -74,11 +86,11 @@ export default function MyTickets({ userTickets, onOpenDeposit }) {
                   </div>
 
                   {ticket.prize_amount > 0 ? (
-                    <span className="font-bold text-emerald-400">
+                    <span className="font-extrabold text-emerald-600">
                       +{ticket.prize_amount.toLocaleString('fr-FR')} FCFA
                     </span>
                   ) : (
-                    <span className="text-gray-500">200 FCFA</span>
+                    <span className="text-slate-400 font-semibold">200 FCFA</span>
                   )}
                 </div>
 
@@ -86,10 +98,10 @@ export default function MyTickets({ userTickets, onOpenDeposit }) {
             ))}
           </div>
         ) : (
-          <div className="bg-slate-900/60 p-8 rounded-2xl border border-slate-800 text-center text-gray-400">
-            <Ticket className="w-10 h-10 text-gray-600 mx-auto mb-2" />
-            <p className="text-sm font-semibold">Vous n'avez aucun billet actif pour le moment.</p>
-            <p className="text-xs text-gray-500 mt-1">Remplissez une grille ci-dessus pour tenter de gagner la cagnotte !</p>
+          <div className="bg-slate-50 p-8 rounded-2xl border border-slate-200 text-center text-slate-500 space-y-2">
+            <Ticket className="w-10 h-10 text-slate-300 mx-auto" />
+            <p className="text-sm font-bold text-[#00205B]">Vous n'avez aucun billet enregistré.</p>
+            <p className="text-xs text-slate-400">Jouez une grille pour tenter de décrocher le jackpot !</p>
           </div>
         )}
 

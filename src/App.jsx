@@ -5,6 +5,7 @@ import TicketSelector from './components/TicketSelector';
 import DrawResults from './components/DrawResults';
 import MyTickets from './components/MyTickets';
 import AdminPanel from './components/AdminPanel';
+import AuthModal from './components/AuthModal';
 import PaiementModal from './components/PaiementModal';
 import ApkDownloadModal from './components/ApkDownloadModal';
 import { supabase } from './lib/supabaseClient';
@@ -16,18 +17,47 @@ export default function App() {
   const [userProfile, setUserProfile] = useState(null);
 
   // Modals state
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isPaiementModalOpen, setIsPaiementModalOpen] = useState(false);
   const [isApkModalOpen, setIsApkModalOpen] = useState(false);
+  const [isAdminVisible, setIsAdminVisible] = useState(false);
+
   const [pendingGrids, setPendingGrids] = useState([]);
   const [pendingCost, setPendingCost] = useState(0);
 
   // Active Tab: 'play' | 'tickets' | 'results'
   const [activeTab, setActiveTab] = useState('play');
 
+  // Détection du mode admin via URL ou raccourci clavier
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('admin') === 'true') {
+      setIsAdminVisible(true);
+    }
+
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+        setIsAdminVisible((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Récupérer le profil sauvegardé localement
+  useEffect(() => {
+    const saved = localStorage.getItem('winnerone_user');
+    if (saved) {
+      try {
+        setUserProfile(JSON.parse(saved));
+      } catch (e) {}
+    }
+  }, []);
+
   // Charge les données initiales depuis Supabase
   const fetchData = async () => {
     try {
-      // 1. Récupérer le tirage actif ('upcoming')
       const { data: upcoming } = await supabase
         .from('draws')
         .select('*')
@@ -39,7 +69,6 @@ export default function App() {
       if (upcoming) {
         setActiveDraw(upcoming);
       } else {
-        // Mock fallback if DB table not created yet
         setActiveDraw({
           id: 'mock-upcoming',
           draw_number: 1,
@@ -49,7 +78,6 @@ export default function App() {
         });
       }
 
-      // 2. Récupérer les tirages passés
       const { data: past } = await supabase
         .from('draws')
         .select('*')
@@ -59,31 +87,12 @@ export default function App() {
 
       if (past) setPastDraws(past);
 
-      // 3. Récupérer les billets enregistrés
       const { data: tickets } = await supabase
         .from('tickets')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (tickets) setUserTickets(tickets);
-
-      // 4. Récupérer ou créer un profil démo
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .limit(1)
-        .maybeSingle();
-
-      if (profile) {
-        setUserProfile(profile);
-      } else {
-        setUserProfile({
-          id: 'demo-user',
-          phone_number: '+223 70 00 00 00',
-          full_name: 'Joueur Mali',
-          balance: 5000,
-        });
-      }
     } catch (err) {
       console.warn('Error loading Supabase data:', err);
     }
@@ -93,71 +102,36 @@ export default function App() {
     fetchData();
   }, []);
 
-  // Déclencher le modal de paiement
   const handleProceedToPayment = (grids, cost) => {
+    if (!userProfile) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     setPendingGrids(grids);
     setPendingCost(cost);
     setIsPaiementModalOpen(true);
   };
 
-  const handlePaymentSuccess = () => {
-    fetchData();
+  const handleUserSaved = (profile) => {
+    setUserProfile(profile);
   };
 
   return (
-    <div className="min-h-screen bg-[#090D16] text-gray-100 flex flex-col justify-between selection:bg-yellow-500 selection:text-black">
+    <div className="min-h-screen bg-[#F4F6F9] text-slate-800 flex flex-col justify-between selection:bg-[#FFD100] selection:text-[#00205B]">
       
       {/* NAVBAR */}
       <Navbar
         userProfile={userProfile}
-        onOpenAuth={() => setActiveTab('tickets')}
-        onOpenDeposit={() => {
-          const el = document.getElementById('ticket-section');
-          if (el) el.scrollIntoView({ behavior: 'smooth' });
-        }}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
         onOpenApkModal={() => setIsApkModalOpen(true)}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
       />
 
       <main className="flex-1 pb-16">
         
-        {/* HERO JACKPOT */}
+        {/* HERO JACKPOT FDJ */}
         <JackpotHero activeDraw={activeDraw} />
-
-        {/* TAB NAVIGATION BAR */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 my-4">
-          <div className="flex items-center justify-center gap-2 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 max-w-md mx-auto shadow-inner">
-            <button
-              onClick={() => setActiveTab('play')}
-              className={`flex-1 py-2 rounded-xl text-xs sm:text-sm font-bold transition ${
-                activeTab === 'play'
-                  ? 'gold-button shadow-md'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Jouer une Grille
-            </button>
-            <button
-              onClick={() => setActiveTab('tickets')}
-              className={`flex-1 py-2 rounded-xl text-xs sm:text-sm font-bold transition ${
-                activeTab === 'tickets'
-                  ? 'gold-button shadow-md'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Mes Billets ({userTickets.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('results')}
-              className={`flex-1 py-2 rounded-xl text-xs sm:text-sm font-bold transition ${
-                activeTab === 'results'
-                  ? 'gold-button shadow-md'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Résultats
-            </button>
-          </div>
-        </div>
 
         {/* DYNAMIC TAB CONTENT */}
         {activeTab === 'play' && (
@@ -167,6 +141,8 @@ export default function App() {
         {activeTab === 'tickets' && (
           <MyTickets
             userTickets={userTickets}
+            userProfile={userProfile}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
             onOpenDeposit={() => setActiveTab('play')}
           />
         )}
@@ -175,38 +151,47 @@ export default function App() {
           <DrawResults pastDraws={pastDraws} userTickets={userTickets} />
         )}
 
-        {/* ADMIN CONTROL PANEL */}
-        <AdminPanel
-          activeDraw={activeDraw}
-          pastDraws={pastDraws}
-          onRefreshData={fetchData}
-        />
-
       </main>
 
       {/* FOOTER */}
-      <footer className="glass-panel border-t border-slate-800 py-6 px-4 text-center text-xs text-gray-500 space-y-2">
-        <p className="font-semibold text-gray-400">
-          WinnerOne Mali &copy; 2026 &bull; Loterie Journalière 100% Sécurisée
+      <footer className="bg-white border-t border-slate-200 py-6 px-4 text-center text-xs text-slate-500 space-y-2">
+        <p className="font-bold text-[#00205B]">
+          WinnerOne Mali &copy; 2026 &bull; Loterie Journalière Officielle (200 FCFA)
         </p>
-        <p className="text-[11px] text-gray-600 max-w-xl mx-auto">
-          Processeurs de paiement : Orange Money Mali (`OMML` / PaiementPro `PP-F92288`). Jouez de manière responsable. Réservé aux personnes de plus de 18 ans au Mali.
+        <p className="text-[11px] text-slate-400 max-w-xl mx-auto">
+          Paiement sécurisé via Orange Money Mali (`OMML` / PaiementPro `PP-F92288`). Réservé aux personnes majeures de plus de 18 ans au Mali.
         </p>
       </footer>
 
       {/* MODALS */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        userProfile={userProfile}
+        onUserSaved={handleUserSaved}
+      />
+
       <PaiementModal
         isOpen={isPaiementModalOpen}
         onClose={() => setIsPaiementModalOpen(false)}
         gridsToPlay={pendingGrids}
         totalCost={pendingCost}
         activeDraw={activeDraw}
-        onPaymentSuccess={handlePaymentSuccess}
+        onPaymentSuccess={fetchData}
       />
 
       <ApkDownloadModal
         isOpen={isApkModalOpen}
         onClose={() => setIsApkModalOpen(false)}
+      />
+
+      {/* ISOLATED ADMIN PANEL */}
+      <AdminPanel
+        activeDraw={activeDraw}
+        pastDraws={pastDraws}
+        onRefreshData={fetchData}
+        isVisible={isAdminVisible}
+        onClose={() => setIsAdminVisible(false)}
       />
 
     </div>
