@@ -34,3 +34,6 @@ jobs:
           local-dir: ./dist/
           # Dossier racine du site sur Hostinger (voir note dans DEPLOIEMENT.md)
           server-dir: public_html/
+          # Nettoie entièrement le dossier distant avant d'uploader le build
+          # (supprime tout résidu : ancien clone source, fichiers orphelins, etc.)
+          dangerous-clean-slate: true
