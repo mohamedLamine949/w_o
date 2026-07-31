@@ -32,8 +32,5 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           # Contenu du build à envoyer
           local-dir: ./dist/
-          # Dossier racine du site sur Hostinger (voir note dans DEPLOIEMENT.md)
-          server-dir: public_html/
-          # Nettoie entièrement le dossier distant avant d'uploader le build
-          # (supprime tout résidu : ancien clone source, fichiers orphelins, etc.)
-          dangerous-clean-slate: true
+          # Le compte FTP arrive déjà dans la racine web -> on dépose à la racine
+          server-dir: ./
