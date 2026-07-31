@@ -32,6 +32,5 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           # Contenu du build à envoyer
           local-dir: ./dist/
-          # app-locus.com est un domaine ADDITIONNEL Hostinger -> sa racine web
-          # est domains/<domaine>/public_html (et non le public_html du site principal)
-          server-dir: domains/app-locus.com/public_html/
+          # Racine web confirmée de app-locus.com (compte u111866847)
+          server-dir: public_html/
