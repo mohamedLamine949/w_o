@@ -1,0 +1,43 @@
+name: Diagnose docroot
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Installer lftp
+        run: sudo apt-get update && sudo apt-get install -y lftp
+
+      - name: Déposer des fichiers témoins dans tous les emplacements candidats
+        env:
+          HOST: ${{ secrets.FTP_HOST }}
+          USERNAME: ${{ secrets.FTP_USERNAME }}
+          PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          printf 'A=public_html'                          > A.txt
+          printf 'B=domains/app-locus.com/public_html'    > B.txt
+          printf 'C=ftp-root'                             > C.txt
+          printf 'D=public_html/public_html'              > D.txt
+          printf 'E=domains/app-locus.com'               > E.txt
+          lftp -u "$USERNAME","$PASSWORD" "$HOST" <<'EOF'
+          set ftp:ssl-allow no
+          set net:max-retries 2
+          set net:timeout 15
+          mkdir -p public_html || true
+          put A.txt -o public_html/probe.txt
+          mkdir -p domains/app-locus.com/public_html || true
+          put B.txt -o domains/app-locus.com/public_html/probe.txt
+          put C.txt -o probe.txt
+          mkdir -p public_html/public_html || true
+          put D.txt -o public_html/public_html/probe.txt
+          mkdir -p domains/app-locus.com || true
+          put E.txt -o domains/app-locus.com/probe.txt
+          echo "----- pwd et listing racine FTP -----"
+          pwd
+          cls -l
+          bye
+          EOF
