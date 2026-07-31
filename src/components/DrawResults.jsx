@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Trophy, Calendar, CheckCircle2, XCircle, Award } from 'lucide-react';
+import { Search, Trophy, Calendar, CheckCircle2, XCircle, Award, HelpCircle } from 'lucide-react';
 import { evaluateTicketRank } from '../lib/lotteryLogic';
 
 export default function DrawResults({ pastDraws, userTickets }) {
@@ -49,7 +49,7 @@ export default function DrawResults({ pastDraws, userTickets }) {
           <div className="flex items-center justify-between border-b border-slate-200 pb-4">
             <div className="flex items-center gap-2">
               <Trophy className="w-5 h-5 text-[#00205B]" />
-              <h2 className="text-lg font-black text-[#00205B]">Dernier Tirage Officiel EuroMillions Mali</h2>
+              <h2 className="text-lg font-black text-[#00205B]">Dernier Tirage WinnerOne Mali</h2>
             </div>
             {latestDrawn && (
               <span className="text-xs text-slate-500 flex items-center gap-1 font-mono">
@@ -83,7 +83,7 @@ export default function DrawResults({ pastDraws, userTickets }) {
               </div>
 
               <div className="pt-2 text-xs text-slate-500">
-                Ventes totales du tirage : <span className="text-[#00205B] font-bold">{latestDrawn.total_sales_pot?.toLocaleString('fr-FR')} FCFA</span>
+                Tickets vendus pour ce tirage : <span className="text-[#00205B] font-bold">{latestDrawn.total_tickets_sold || 0}</span>
               </div>
             </div>
           ) : (
@@ -93,51 +93,63 @@ export default function DrawResults({ pastDraws, userTickets }) {
             </div>
           )}
 
-          {/* RANGS DE GAIN TABLE */}
-          <div>
-            <h3 className="text-xs font-bold text-[#00205B] uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Award className="w-4 h-4 text-amber-500" />
-              <span>Ventilation Officielle des Rangs de Gain</span>
-            </h3>
+          {/* EXPLICATION SIMPLE DES GAINS (LANGAGE CLAIR) */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-amber-500" />
+              <h3 className="text-sm font-black text-[#00205B]">Comment sont partagés les gains du tirage ?</h3>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed bg-blue-50 p-3 rounded-xl border border-blue-100">
+              Chaque jour, <span className="font-bold text-[#00205B]">60% de l'argent de tous les tickets vendus</span> est redistribué immédiatement aux gagnants.
+              Par exemple, si 100 000 FCFA de tickets sont vendus, <span className="font-bold text-emerald-700">60 000 FCFA sont redistribués</span> aux joueurs gagnants.
+            </p>
 
             <div className="overflow-x-auto border border-slate-200 rounded-2xl">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-100 border-b border-slate-200 text-slate-600 font-bold">
-                    <th className="py-2.5 px-3">Rang</th>
-                    <th className="py-2.5 px-3">Combinaison Gagnante</th>
-                    <th className="py-2.5 px-3 text-right">% Cagnotte</th>
+                    <th className="py-2.5 px-3">Pour gagner</th>
+                    <th className="py-2.5 px-3">Il faut trouver</th>
+                    <th className="py-2.5 px-3 text-right">Part des gains</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 text-slate-700">
                   <tr className="bg-yellow-50 font-bold text-[#00205B]">
-                    <td className="py-2.5 px-3">Rang 1</td>
-                    <td className="py-2.5 px-3">5 Numéros + 2 Étoiles</td>
-                    <td className="py-2.5 px-3 text-right text-amber-700">50% (+ Jackpot)</td>
+                    <td className="py-2.5 px-3 flex items-center gap-1.5">
+                      <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Le Jackpot !</span>
+                    </td>
+                    <td className="py-2.5 px-3">Les 5 numéros + les 2 étoiles</td>
+                    <td className="py-2.5 px-3 text-right text-amber-700">La moitié de la cagnotte</td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-3 font-semibold">Rang 2</td>
-                    <td className="py-2.5 px-3">5 Numéros + 1 Étoile</td>
-                    <td className="py-2.5 px-3 text-right">15%</td>
+                    <td className="py-2.5 px-3 font-semibold">2ème prix</td>
+                    <td className="py-2.5 px-3">5 numéros + 1 étoile</td>
+                    <td className="py-2.5 px-3 text-right">15% partagés entre les gagnants</td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-3 font-semibold">Rang 3</td>
-                    <td className="py-2.5 px-3">5 Numéros + 0 Étoile</td>
-                    <td className="py-2.5 px-3 text-right">10%</td>
+                    <td className="py-2.5 px-3 font-semibold">3ème prix</td>
+                    <td className="py-2.5 px-3">5 numéros (sans étoile)</td>
+                    <td className="py-2.5 px-3 text-right">10% partagés entre les gagnants</td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-3 font-semibold">Rang 4</td>
-                    <td className="py-2.5 px-3">4 Numéros + 2/1 Étoiles</td>
-                    <td className="py-2.5 px-3 text-right">10%</td>
+                    <td className="py-2.5 px-3 font-semibold">4ème prix</td>
+                    <td className="py-2.5 px-3">4 numéros + 1 ou 2 étoiles</td>
+                    <td className="py-2.5 px-3 text-right">10% partagés entre les gagnants</td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-3 font-semibold">Rang 5</td>
-                    <td className="py-2.5 px-3">3 Numéros / 2 Num + 2 Étoiles</td>
-                    <td className="py-2.5 px-3 text-right">15%</td>
+                    <td className="py-2.5 px-3 font-semibold">5ème prix</td>
+                    <td className="py-2.5 px-3">3 numéros ou 2 numéros + 2 étoiles</td>
+                    <td className="py-2.5 px-3 text-right">15% partagés entre les gagnants</td>
                   </tr>
                 </tbody>
               </table>
             </div>
+
+            <p className="text-[11px] text-slate-400 italic">
+              Si personne ne gagne le Jackpot, la cagnotte s'accumule pendant 3 tirages maximum avant d'être remise à zéro.
+            </p>
           </div>
 
         </div>
@@ -147,10 +159,10 @@ export default function DrawResults({ pastDraws, userTickets }) {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Search className="w-5 h-5 text-blue-600" />
-              <h3 className="text-base font-black text-[#00205B]">Vérificateur de Billet</h3>
+              <h3 className="text-base font-black text-[#00205B]">Vérifier mon Billet</h3>
             </div>
             <p className="text-xs text-slate-500 mb-4">
-              Entrez la référence de votre ticket pour vérifier vos gains.
+              Entrez la référence de votre ticket pour savoir si vous avez gagné.
             </p>
 
             <form onSubmit={handleCheckTicket} className="space-y-3">
@@ -191,11 +203,13 @@ export default function DrawResults({ pastDraws, userTickets }) {
                         <XCircle className="w-5 h-5 text-slate-400" />
                       )}
                       <span className="font-extrabold text-[#00205B]">
-                        {checkResult.evalRes.rankLabel}
+                        {checkResult.evalRes.rank > 0
+                          ? `Félicitations ! Vous avez le ${checkResult.evalRes.rank === 1 ? 'Jackpot' : checkResult.evalRes.rank + 'ème prix'} !`
+                          : 'Pas de gain cette fois-ci. Retentez votre chance !'}
                       </span>
                     </div>
                     <p className="text-slate-500">
-                      Correspondance : {checkResult.evalRes.matchedMain} numéros + {checkResult.evalRes.matchedStar} étoiles
+                      {checkResult.evalRes.matchedMain} numéros trouvés + {checkResult.evalRes.matchedStar} étoile(s) trouvée(s)
                     </p>
                   </div>
                 )}
@@ -204,7 +218,7 @@ export default function DrawResults({ pastDraws, userTickets }) {
           </div>
 
           <div className="pt-4 border-t border-slate-200 text-[11px] text-slate-400 text-center">
-            WinnerOne Mali &bull; EuroMillions officiel journalier.
+            WinnerOne Mali &bull; Tirages quotidiens transparents et vérifiables.
           </div>
         </div>
 
