@@ -4,6 +4,7 @@ import JackpotHero from './components/JackpotHero';
 import TicketSelector from './components/TicketSelector';
 import DrawResults from './components/DrawResults';
 import MyTickets from './components/MyTickets';
+import UserProfile from './components/UserProfile';
 import AdminPanel from './components/AdminPanel';
 import AuthModal from './components/AuthModal';
 import PaiementModal from './components/PaiementModal';
@@ -15,6 +16,7 @@ export default function App() {
   const [pastDraws, setPastDraws] = useState([]);
   const [userTickets, setUserTickets] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
+  const [latestWinningTicket, setLatestWinningTicket] = useState(null);
 
   // Modals state
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -25,10 +27,9 @@ export default function App() {
   const [pendingGrids, setPendingGrids] = useState([]);
   const [pendingCost, setPendingCost] = useState(0);
 
-  // Active Tab: 'play' | 'tickets' | 'results'
+  // Active Tab: 'play' | 'tickets' | 'results' | 'profile'
   const [activeTab, setActiveTab] = useState('play');
 
-  // Détection du mode admin via URL ou raccourci clavier
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('admin') === 'true') {
@@ -45,7 +46,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Récupérer le profil sauvegardé localement
   useEffect(() => {
     const saved = localStorage.getItem('winnerone_user');
     if (saved) {
@@ -55,7 +55,6 @@ export default function App() {
     }
   }, []);
 
-  // Charge les données initiales depuis Supabase
   const fetchData = async () => {
     try {
       const { data: upcoming } = await supabase
@@ -92,7 +91,11 @@ export default function App() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (tickets) setUserTickets(tickets);
+      if (tickets) {
+        setUserTickets(tickets);
+        const winningTicket = tickets.find((t) => t.win_rank > 0);
+        if (winningTicket) setLatestWinningTicket(winningTicket);
+      }
     } catch (err) {
       console.warn('Error loading Supabase data:', err);
     }
@@ -130,8 +133,8 @@ export default function App() {
 
       <main className="flex-1 pb-16">
         
-        {/* HERO JACKPOT FDJ */}
-        <JackpotHero activeDraw={activeDraw} />
+        {/* HERO JACKPOT WINNERONE */}
+        <JackpotHero activeDraw={activeDraw} latestWinningTicket={latestWinningTicket} />
 
         {/* DYNAMIC TAB CONTENT */}
         {activeTab === 'play' && (
@@ -149,6 +152,15 @@ export default function App() {
 
         {activeTab === 'results' && (
           <DrawResults pastDraws={pastDraws} userTickets={userTickets} />
+        )}
+
+        {activeTab === 'profile' && (
+          <UserProfile
+            userProfile={userProfile}
+            userTickets={userTickets}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
+            onOpenDeposit={() => setActiveTab('play')}
+          />
         )}
 
       </main>

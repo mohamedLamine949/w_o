@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, User, Download, Wallet, LogOut, CheckCircle2 } from 'lucide-react';
+import { Trophy, User, Download, CheckCircle2 } from 'lucide-react';
 
 export default function Navbar({ userProfile, onOpenAuth, onOpenApkModal, activeTab, setActiveTab }) {
   return (
@@ -15,10 +15,10 @@ export default function Navbar({ userProfile, onOpenAuth, onOpenApkModal, active
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xl font-black tracking-tight text-white">EUROMILLIONS</span>
+              <span className="text-xl font-black tracking-tight text-white">WINNER<span className="text-yellow-400">ONE</span></span>
               <span className="bg-yellow-400 text-blue-950 font-black text-[10px] px-1.5 py-0.5 rounded uppercase">MALI</span>
             </div>
-            <p className="text-[10px] text-blue-200 font-medium">WinnerOne &bull; Tirage Journalier (200 FCFA)</p>
+            <p className="text-[10px] text-blue-200 font-medium">Loterie Journalière Officielle (200 FCFA)</p>
           </div>
         </div>
 
@@ -42,6 +42,12 @@ export default function Navbar({ userProfile, onOpenAuth, onOpenApkModal, active
           >
             Résultats
           </button>
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`px-4 py-2 rounded-lg transition ${activeTab === 'profile' ? 'bg-blue-800 text-yellow-300 font-extrabold' : 'hover:bg-blue-900/60'}`}
+          >
+            Mon Compte Joueur
+          </button>
         </nav>
 
         {/* RIGHT ACTIONS */}
@@ -59,7 +65,7 @@ export default function Navbar({ userProfile, onOpenAuth, onOpenApkModal, active
           {/* USER ACCOUNT BADGE */}
           {userProfile ? (
             <div
-              onClick={onOpenAuth}
+              onClick={() => setActiveTab('profile')}
               className="flex items-center gap-2 bg-blue-950/90 border border-blue-700/60 hover:border-yellow-400 rounded-full px-3 py-1.5 cursor-pointer transition shadow-inner"
             >
               <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">
